@@ -63,7 +63,7 @@ HTTP 204
 {"error":"Task not found"}HTTP 404
 ```
 
-## Capturas
+## Evidencias con capturas
 
 Las capturas PNG de la evidencia deben guardarse en la carpeta `capturas/`:
 
