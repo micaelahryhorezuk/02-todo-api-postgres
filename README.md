@@ -6,7 +6,7 @@ Extender la practica 01 (API en memoria) para persistir las tareas en una
 base de datos Postgres real, corriendo todo con Docker Compose: un
 contenedor para la API de Node/Express y otro para Postgres.
 
-Al terminar esta practica vas a poder:
+Al terminar esta practica se podrá:
 
 - Levantar un entorno multi-contenedor con `docker compose up`
 - Explicar por que, dentro de la red de Compose, el host de la base es el
@@ -17,7 +17,6 @@ Al terminar esta practica vas a poder:
 
 ## Estructura
 
-```
 02-todo-api-postgres/
 ├── db/
 │   └── init.sql        # Se ejecuta una sola vez al crear el volumen de Postgres
@@ -28,7 +27,6 @@ Al terminar esta practica vas a poder:
 ├── .env.example         # Copiar a .env y ajustar si hace falta
 ├── .dockerignore
 └── package.json
-```
 
 ## Como correr
 
@@ -67,6 +65,7 @@ Al terminar esta practica vas a poder:
 curl http://localhost:3001/tasks
 curl http://localhost:3001/tasks/1
 curl http://localhost:3001/tasks?status=pending
+curl http://localhost:3001/tasks?limit=10\&offset=0
 
 curl -X POST http://localhost:3001/tasks \
   -H "Content-Type: application/json" \

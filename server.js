@@ -21,13 +21,35 @@ const PORT = process.env.PORT || 3001
 
 app.use(express.json())
 
-// GET /tasks - Listar todas las tareas (con filtro opcional ?status=pending)
+// GET /tasks - Listar tareas con filtro y paginacion opcionales
 app.get('/tasks', async (req, res) => {
     try {
         const { status } = req.query
-        const result = status
-            ? await pool.query('SELECT * FROM tasks WHERE status = $1 ORDER BY id', [status])
-            : await pool.query('SELECT * FROM tasks ORDER BY id')
+        const limit = Number(req.query.limit ?? 10)
+        const offset = Number(req.query.offset ?? 0)
+
+        if (!Number.isInteger(limit) || limit < 0 || !Number.isInteger(offset) || offset < 0) {
+            return res.status(400).json({ error: 'limit and offset must be non-negative integers' })
+        }
+
+        const values = []
+        const filters = []
+
+        if (status) {
+            values.push(status)
+            filters.push(`status = $${values.length}`)
+        }
+
+        values.push(limit, offset)
+        const limitParameter = values.length - 1
+        const offsetParameter = values.length
+        const whereClause = filters.length > 0 ? `WHERE ${filters.join(' AND ')}` : ''
+        const result = await pool.query(
+            `SELECT * FROM tasks ${whereClause}
+             ORDER BY id
+             LIMIT $${limitParameter} OFFSET $${offsetParameter}`,
+            values
+        )
         res.json(result.rows)
     } catch (err) {
         res.status(500).json({ error: err.message })
@@ -58,6 +80,9 @@ app.post('/tasks', async (req, res) => {
         if (!title) {
             return res.status(400).json({ error: 'Title is required' })
         }
+        if (status && status !== 'pending' && status !== 'completed') {
+            return res.status(400).json({ error: 'Status must be pending or completed' })
+        }
 
         const result = await pool.query(
             `INSERT INTO tasks (title, description, status, due_date)
@@ -72,31 +97,46 @@ app.post('/tasks', async (req, res) => {
     }
 })
 
-// TODO PUT /tasks/:id - Actualizar una tarea existente
-// Pistas:
-// - Podes usar COALESCE para no pisar los campos que no vengan en el body:
-//     UPDATE tasks
-//     SET title = COALESCE($1, title),
-//         description = COALESCE($2, description),
-//         status = COALESCE($3, status),
-//         due_date = COALESCE($4, due_date),
-//         updated_at = NOW()
-//     WHERE id = $5
-//     RETURNING *
-// - Si "RETURNING *" no devuelve filas, la tarea no existia -> responder 404
 app.put('/tasks/:id', async (req, res) => {
-    // Tu codigo aca
-    res.status(501).json({ error: 'Not implemented yet' })
+    try {
+        const { id } = req.params
+        const { title, description, status, dueDate } = req.body
+
+        const result = await pool.query(
+            `UPDATE tasks
+             SET title = COALESCE($1, title),
+                 description = COALESCE($2, description),
+                 status = COALESCE($3, status),
+                 due_date = COALESCE($4, due_date),
+                 updated_at = NOW()
+             WHERE id = $5
+             RETURNING *`,
+            [title, description, status, dueDate, id]
+        )
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Task not found' })
+        }
+
+        res.json(result.rows[0])
+    } catch (err) {
+        res.status(500).json({ error: err.message })
+    }
 })
 
-// TODO DELETE /tasks/:id - Eliminar una tarea
-// Pistas:
-// - DELETE FROM tasks WHERE id = $1 RETURNING *
-// - Si no devuelve filas, la tarea no existia -> responder 404
-// - Si borra correctamente, responder 204 sin body
 app.delete('/tasks/:id', async (req, res) => {
-    // Tu codigo aca
-    res.status(501).json({ error: 'Not implemented yet' })
+    try {
+        const { id } = req.params
+        const result = await pool.query('DELETE FROM tasks WHERE id = $1 RETURNING *', [id])
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'Task not found' })
+        }
+
+        res.status(204).send()
+    } catch (err) {
+        res.status(500).json({ error: err.message })
+    }
 })
 
 app.listen(PORT, () => {
